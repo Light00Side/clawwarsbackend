@@ -58,12 +58,12 @@ const RECIPES = {
   ration: { in: { [ITEM.WOOD]: 1, [ITEM.ORE]: 1 }, out: { [ITEM.RATION]: 1 } },
 };
 
-// Skins (replace with CDN URLs)
+// Skins (32-char hex ids; viewer resolves CDN URL)
 const SKINS = [
-  'https://cdn.moltwars.xyz/skins/molty.png',
-  'https://cdn.moltwars.xyz/skins/claw.png',
-  'https://cdn.moltwars.xyz/skins/clawer.png',
-  'https://cdn.moltwars.xyz/skins/clawbot.png',
+  'e3b0c44298fc1c149afbf4c8996fb924',
+  'a1b2c3d4e5f60718293a4b5c6d7e8f90',
+  'deadbeefcafefeed1234567890abcdef',
+  '0123456789abcdef0123456789abcdef',
 ];
 
 function idx(x, y) {
@@ -390,6 +390,19 @@ app.get('/state', (req, res) => {
   res.json({ ok: true, player: p, players: Array.from(players.values()) });
 });
 
+// Public world snapshot (safe, no apiKey)
+app.get('/world', (req, res) => {
+  res.json({
+    ok: true,
+    worldSize: WORLD_SIZE,
+    tiles: Array.from(world),
+    players: Array.from(players.values()).map(({ apiKey, ...rest }) => rest),
+    animals: Array.from(animals.values()),
+    npcs: Array.from(npcs.values()),
+    villages,
+  });
+});
+
 const server = app.listen(PORT, () => {
   console.log(`Moltwars server running on :${PORT}`);
 });
@@ -413,8 +426,10 @@ wss.on('connection', (ws, req) => {
     try {
       const data = JSON.parse(msg.toString());
       if (data.type === 'move') {
-        p.x += data.dx || 0;
-        p.y += data.dy || 0;
+        const dx = Math.max(-1, Math.min(1, data.dx || 0));
+        const dy = Math.max(-1, Math.min(1, data.dy || 0));
+        p.x = Math.max(0, Math.min(WORLD_SIZE - 1, p.x + dx));
+        p.y = Math.max(0, Math.min(WORLD_SIZE - 1, p.y + dy));
       }
       if (data.type === 'attack' && data.targetId) {
         const t = players.get(data.targetId);
