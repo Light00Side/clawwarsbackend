@@ -100,6 +100,7 @@ function setSeed(seed) {
 const players = new Map(); // playerId -> {id, name, x, y, hp, apiKey, inv, spawn, active, lastAttack}
 const sockets = new Map(); // playerId -> ws
 let world = new Uint8Array(WORLD_SIZE * WORLD_SIZE);
+let surfaceMap = new Int16Array(WORLD_SIZE);
 let villages = []; // [{x,y}]
 const chests = new Map(); // key "x,y" -> {items:{[item]:count}}
 const animals = new Map(); // id -> {id, type, x, y, hp, vx, vy}
@@ -145,6 +146,7 @@ function genWorld() {
     h += Math.floor((rand() - 0.5) * 3); // gentle variation
     h = Math.max(minSurface, Math.min(maxSurface, h));
     surface[x] = h;
+    surfaceMap[x] = h;
   }
 
   for (let y = 0; y < WORLD_SIZE; y++) {
@@ -290,10 +292,19 @@ function saveWorld() {
   }
 }
 
+function findSurfaceY(x) {
+  const sx = Math.max(0, Math.min(WORLD_SIZE - 1, x));
+  const s = surfaceMap[sx];
+  if (s && s > 1) return s - 2;
+  for (let y = 0; y < WORLD_SIZE - 1; y++) {
+    if (isSolid(getTile(sx, y + 1))) return Math.max(0, y - 1);
+  }
+  return Math.floor(WORLD_SIZE * 0.2);
+}
+
 function spawnPlayer(name) {
-  const skyH = Math.floor(WORLD_SIZE * 0.2);
-  const surfaceY = skyH + 2;
   const spawnX = Math.floor(rand() * WORLD_SIZE);
+  const surfaceY = findSurfaceY(spawnX);
   return {
     id: randomUUID(),
     name,
@@ -552,7 +563,7 @@ wss.on('connection', (ws, req) => {
 
             t.hp = 100;
             t.x = t.spawn.x;
-            t.y = t.spawn.y;
+            t.y = findSurfaceY(t.spawn.x);
             broadcast({ type: 'chat', message: `${t.name} died and respawned` });
           }
         }
