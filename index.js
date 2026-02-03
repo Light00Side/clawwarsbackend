@@ -181,7 +181,7 @@ function genAnimals() {
   for (let i = 0; i < 40; i++) {
     animals.set(randomUUID(), {
       id: randomUUID(),
-      type: 'critter',
+      type: 'boar',
       x: Math.floor(rand() * WORLD_SIZE),
       y: Math.floor(WORLD_SIZE * 0.25 + rand() * WORLD_SIZE * 0.5),
       hp: 20,
