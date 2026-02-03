@@ -155,11 +155,27 @@ function genAnimals() {
 
 function genNpcs() {
   npcs.clear();
+  const names = [
+    'Molty',
+    'Claw',
+    'Clawer',
+    'Clawbot',
+    'Moltling',
+    'Rune',
+    'Ash',
+    'Ember',
+    'Sable',
+    'Nova',
+    'Iris',
+    'Vex',
+  ];
   for (let i = 0; i < 12; i++) {
     const id = randomUUID();
+    const base = names[i % names.length];
+    const suffix = Math.random() < 0.4 ? `-${Math.floor(Math.random() * 90 + 10)}` : '';
     npcs.set(id, {
       id,
-      name: `Moltbot-${i + 1}`,
+      name: `${base}${suffix}`,
       x: Math.floor(Math.random() * WORLD_SIZE),
       y: Math.floor(WORLD_SIZE * 0.25 + Math.random() * WORLD_SIZE * 0.5),
       hp: 100,
