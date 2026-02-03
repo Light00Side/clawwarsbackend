@@ -96,7 +96,7 @@ function setSeed(seed) {
 }
 
 // In-memory state (authoritative)
-const players = new Map(); // playerId -> {id, name, x, y, hp, apiKey, inv, spawn, active}
+const players = new Map(); // playerId -> {id, name, x, y, hp, apiKey, inv, spawn, active, lastAttack}
 const sockets = new Map(); // playerId -> ws
 let world = new Uint8Array(WORLD_SIZE * WORLD_SIZE);
 let villages = []; // [{x,y}]
@@ -291,6 +291,7 @@ function spawnPlayer(name) {
     apiKey: randomUUID().replace(/-/g, ''),
     inv: {},
     active: null,
+    lastAttack: 0,
     spawn: { x: spawnX, y: surfaceY },
     skin: SKINS[Math.floor(rand() * SKINS.length)],
   };
@@ -463,14 +464,20 @@ wss.on('connection', (ws, req) => {
         p.y = Math.max(0, Math.min(WORLD_SIZE - 1, p.y + dy));
       }
       if (data.type === 'attack' && data.targetId) {
+        const now = Date.now();
+        const active = p.active;
+        const baseDmg = 5;
+        let dmg = baseDmg;
+        let cd = 800; // default cooldown ms
+        if (active && ITEM_DEFS.items?.[active]?.tags?.includes('weapon')) {
+          dmg = ITEM_DEFS.items[active].dmg || baseDmg;
+          cd = ITEM_DEFS.items[active].cooldown || cd;
+        }
+        if (now - (p.lastAttack || 0) < cd) return;
+        p.lastAttack = now;
+
         const t = players.get(data.targetId);
         if (t) {
-          const active = p.active;
-          const baseDmg = 5;
-          let dmg = baseDmg;
-          if (active && ITEM_DEFS.items?.[active]?.tags?.includes('weapon')) {
-            dmg = ITEM_DEFS.items[active].dmg || baseDmg;
-          }
           t.hp = Math.max(0, t.hp - dmg);
           if (t.hp === 0) {
             // drop all loot into a chest at death location
