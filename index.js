@@ -137,8 +137,8 @@ function setTile(x, y, t) {
 
 function genWorld() {
   // heightmap-based terrain
-  const minSurface = Math.floor(WORLD_SIZE * 0.18);
-  const maxSurface = Math.floor(WORLD_SIZE * 0.42);
+  const minSurface = Math.floor(WORLD_SIZE * 0.12);
+  const maxSurface = Math.floor(WORLD_SIZE * 0.32);
   const surface = new Array(WORLD_SIZE);
   let h = Math.floor(WORLD_SIZE * 0.55);
 
