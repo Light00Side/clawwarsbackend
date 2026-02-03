@@ -1,0 +1,13 @@
+{
+  "items": {
+    "dirt": { "id": "dirt", "tags": ["material"], "stack": 999 },
+    "stone": { "id": "stone", "tags": ["material"], "stack": 999 },
+    "ore": { "id": "ore", "tags": ["material"], "stack": 999 },
+    "wood": { "id": "wood", "tags": ["material"], "stack": 999 },
+    "ration": { "id": "ration", "tags": ["food"], "heal": 20, "stack": 99 },
+    "sword": { "id": "sword", "tags": ["weapon","melee"], "dmg": 5, "cooldown": 700, "stack": 1 }
+  },
+  "recipes": {
+    "ration": { "in": { "wood": 1, "ore": 1 }, "out": { "ration": 1 } }
+  }
+}

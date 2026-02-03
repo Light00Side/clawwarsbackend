@@ -25,6 +25,34 @@ const TILE = {
   TREE: 4,
 };
 
+// Item defs (loaded from defs.json)
+const DEF_PATH = './defs.json';
+let ITEM_DEFS = {
+  items: {
+    dirt: { id: 'dirt', tags: ['material'], stack: 999 },
+    stone: { id: 'stone', tags: ['material'], stack: 999 },
+    ore: { id: 'ore', tags: ['material'], stack: 999 },
+    wood: { id: 'wood', tags: ['material'], stack: 999 },
+    ration: { id: 'ration', tags: ['food'], heal: 20, stack: 99 },
+    sword: { id: 'sword', tags: ['weapon', 'melee'], dmg: 5, cooldown: 700, stack: 1 },
+  },
+  recipes: {
+    ration: { in: { wood: 1, ore: 1 }, out: { ration: 1 } },
+  },
+};
+
+function loadDefs() {
+  try {
+    if (fs.existsSync(DEF_PATH)) {
+      const raw = fs.readFileSync(DEF_PATH, 'utf8');
+      const data = JSON.parse(raw);
+      if (data?.items && data?.recipes) ITEM_DEFS = data;
+    }
+  } catch (e) {
+    console.error('Failed to load defs.json:', e);
+  }
+}
+
 // Item types (non-minecraft clone, minimal)
 const ITEM = {
   DIRT: 'dirt',
@@ -76,10 +104,8 @@ const chests = new Map(); // key "x,y" -> {items:{[item]:count}}
 const animals = new Map(); // id -> {id, type, x, y, hp, vx, vy}
 const npcs = new Map(); // id -> {id, name, x, y, hp, inv, vx, vy}
 
-// Crafting recipes (simple, non-minecraft)
-const RECIPES = {
-  ration: { in: { [ITEM.WOOD]: 1, [ITEM.ORE]: 1 }, out: { [ITEM.RATION]: 1 } },
-};
+// Crafting recipes (loaded from defs.json)
+const RECIPES = () => ITEM_DEFS.recipes || {};
 
 // Skins (32-char hex ids; viewer resolves CDN URL)
 const SKINS = [
@@ -491,7 +517,7 @@ wss.on('connection', (ws, req) => {
       }
       if (data.type === 'craft') {
         const { recipe } = data;
-        const r = RECIPES[recipe];
+        const r = RECIPES()[recipe];
         if (!r) return;
         let ok = true;
         for (const [k, v] of Object.entries(r.in)) {
@@ -565,6 +591,7 @@ setInterval(() => {
 }, 1000 / TICK_RATE);
 
 // Load and autosave
+loadDefs();
 loadWorld();
 setInterval(saveWorld, SAVE_INTERVAL_MS);
 process.on('SIGINT', () => {
