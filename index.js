@@ -58,6 +58,14 @@ const RECIPES = {
   ration: { in: { [ITEM.WOOD]: 1, [ITEM.ORE]: 1 }, out: { [ITEM.RATION]: 1 } },
 };
 
+// Skins (replace with CDN URLs)
+const SKINS = [
+  '/skins/molty.png',
+  '/skins/claw.png',
+  '/skins/clawer.png',
+  '/skins/clawbot.png',
+];
+
 function idx(x, y) {
   return y * WORLD_SIZE + x;
 }
@@ -182,6 +190,7 @@ function genNpcs() {
       inv: {},
       vx: 0,
       vy: 0,
+      skin: SKINS[i % SKINS.length],
     });
   }
 }
@@ -252,6 +261,7 @@ function spawnPlayer(name) {
     apiKey: randomUUID().replace(/-/g, ''),
     inv: {},
     spawn: { x: spawnX, y: surfaceY },
+    skin: SKINS[Math.floor(Math.random() * SKINS.length)],
   };
 }
 
@@ -524,7 +534,7 @@ setInterval(() => {
 
     const payload = {
       type: 'tick',
-      player: { id: p.id, x: p.x, y: p.y, hp: p.hp, inv: p.inv },
+      player: { id: p.id, x: p.x, y: p.y, hp: p.hp, inv: p.inv, skin: p.skin },
       players: nearbyPlayers,
       tiles: getViewport(p),
       chests: nearbyChests(p),
