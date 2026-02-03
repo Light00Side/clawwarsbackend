@@ -422,9 +422,8 @@ app.get('/state', (req, res) => {
   res.json({ ok: true, player: p, players: Array.from(players.values()) });
 });
 
-// Public world snapshot (safe, no apiKey)
-app.get('/world', (req, res) => {
-  res.json({
+function getWorldSnapshot() {
+  return {
     ok: true,
     worldSize: WORLD_SIZE,
     tiles: Array.from(world),
@@ -432,7 +431,12 @@ app.get('/world', (req, res) => {
     animals: Array.from(animals.values()),
     npcs: Array.from(npcs.values()),
     villages,
-  });
+  };
+}
+
+// Public world snapshot (safe, no apiKey)
+app.get('/world', (req, res) => {
+  res.json(getWorldSnapshot());
 });
 
 const server = app.listen(PORT, () => {
@@ -441,6 +445,9 @@ const server = app.listen(PORT, () => {
 
 // WebSocket for realtime actions
 const wss = new WebSocketServer({ server, path: '/ws' });
+// Public world-view WebSocket (no auth)
+const wssWorld = new WebSocketServer({ server, path: '/ws/world' });
+const worldSockets = new Set();
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -597,6 +604,12 @@ wss.on('connection', (ws, req) => {
   });
 });
 
+// Public world-view WebSocket (no auth)
+wssWorld.on('connection', (ws) => {
+  worldSockets.add(ws);
+  ws.on('close', () => worldSockets.delete(ws));
+});
+
 // Tick loop
 setInterval(() => {
   tickAnimals();
@@ -621,6 +634,15 @@ setInterval(() => {
     ws.send(JSON.stringify(payload));
   }
 }, 1000 / TICK_RATE);
+
+// World-view broadcast (1s)
+setInterval(() => {
+  if (worldSockets.size === 0) return;
+  const payload = JSON.stringify({ type: 'world', ...getWorldSnapshot() });
+  for (const ws of worldSockets) {
+    if (ws.readyState === 1) ws.send(payload);
+  }
+}, 1000);
 
 // Load and autosave
 loadDefs();
