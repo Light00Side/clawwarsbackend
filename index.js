@@ -7,7 +7,7 @@ import fs from 'fs';
 
 const PORT = process.env.PORT || 8080;
 const TICK_RATE = 10; // 100ms ticks
-const WORLD_SIZE = 128; // tiles (square)
+const WORLD_SIZE = 192; // tiles (square)
 const VIEW_RADIUS = 10; // tiles around player
 const SAVE_PATH = './data/world.json';
 const SAVE_INTERVAL_MS = 5000;
