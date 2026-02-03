@@ -137,8 +137,8 @@ function setTile(x, y, t) {
 
 function genWorld() {
   // heightmap-based terrain
-  const minSurface = Math.floor(WORLD_SIZE * 0.3);
-  const maxSurface = Math.floor(WORLD_SIZE * 0.7);
+  const minSurface = Math.floor(WORLD_SIZE * 0.18);
+  const maxSurface = Math.floor(WORLD_SIZE * 0.42);
   const surface = new Array(WORLD_SIZE);
   let h = Math.floor(WORLD_SIZE * 0.55);
 
@@ -156,10 +156,10 @@ function genWorld() {
         setTile(x, y, TILE.AIR);
       } else if (y === s - 1) {
         setTile(x, y, TILE.GRASS);
-      } else if (y < s + 4) {
+      } else if (y < s + 10) {
         setTile(x, y, TILE.DIRT);
       } else {
-        setTile(x, y, rand() < 0.08 ? TILE.ORE : TILE.STONE);
+        setTile(x, y, rand() < 0.06 ? TILE.ORE : TILE.STONE);
       }
     }
   }
