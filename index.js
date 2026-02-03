@@ -3,18 +3,45 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import { WebSocketServer } from 'ws';
 import { randomUUID } from 'crypto';
+import fs from 'fs';
 
 const PORT = process.env.PORT || 8080;
-const TICK_RATE = 5; // ticks per second
+const TICK_RATE = 10; // ticks per second (fast)
 const WORLD_SIZE = 256;
+const SAVE_PATH = './data/world.json';
+const SAVE_INTERVAL_MS = 5000;
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// In-memory state (MVP)
+// In-memory state (authoritative)
 const players = new Map(); // playerId -> {id, name, x, y, hp, apiKey}
 const sockets = new Map(); // playerId -> ws
+
+function loadWorld() {
+  try {
+    if (fs.existsSync(SAVE_PATH)) {
+      const raw = fs.readFileSync(SAVE_PATH, 'utf8');
+      const data = JSON.parse(raw);
+      if (data?.players) {
+        for (const p of data.players) players.set(p.id, p);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load world:', e);
+  }
+}
+
+function saveWorld() {
+  try {
+    const snapshot = { players: Array.from(players.values()) };
+    fs.mkdirSync('./data', { recursive: true });
+    fs.writeFileSync(SAVE_PATH, JSON.stringify(snapshot));
+  } catch (e) {
+    console.error('Failed to save world:', e);
+  }
+}
 
 function spawnPlayer(name) {
   return {
@@ -27,10 +54,15 @@ function spawnPlayer(name) {
   };
 }
 
-// REST: join
+// REST: join (unique usernames)
 app.post('/join', (req, res) => {
   const { name } = req.body || {};
   if (!name) return res.status(400).json({ ok: false, error: 'name required' });
+  for (const p of players.values()) {
+    if (p.name.toLowerCase() === String(name).toLowerCase()) {
+      return res.status(409).json({ ok: false, error: 'name taken' });
+    }
+  }
   const player = spawnPlayer(name);
   players.set(player.id, player);
   res.json({ ok: true, playerId: player.id, apiKey: player.apiKey, spawn: { x: player.x, y: player.y } });
@@ -90,3 +122,11 @@ setInterval(() => {
     if (ws.readyState === 1) ws.send(payload);
   }
 }, 1000 / TICK_RATE);
+
+// Load and autosave
+loadWorld();
+setInterval(saveWorld, SAVE_INTERVAL_MS);
+process.on('SIGINT', () => {
+  saveWorld();
+  process.exit();
+});
