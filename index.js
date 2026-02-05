@@ -413,6 +413,7 @@ function spawnPlayer(name) {
     active: null,
     lastAttack: 0,
     lastSeen: Date.now(),
+    look: 1,
     stats: {
       kills: 0,
       deaths: 0,
@@ -813,6 +814,7 @@ wss.on('connection', (ws, req) => {
       if (data.type === 'move') {
         const dx = Math.max(-1, Math.min(1, data.dx || 0));
         const dy = Math.max(-1, Math.min(1, data.dy || 0));
+        if (dx !== 0) p.look = dx > 0 ? 1 : 0;
         tryMove(p, dx, dy);
       }
       if (data.type === 'attack' && data.targetId) {
@@ -999,7 +1001,7 @@ setInterval(() => {
 
     const payload = {
       type: 'tick',
-      player: { id: p.id, x: p.x, y: p.y, hp: p.hp, inv: p.inv, skin: p.skin, active: p.active },
+      player: { id: p.id, x: p.x, y: p.y, hp: p.hp, inv: p.inv, skin: p.skin, active: p.active, look: p.look ?? 1 },
       players: nearbyPlayers,
       tiles: getViewport(p),
       chests: nearbyChests(p),
