@@ -307,7 +307,7 @@ function genNpcs() {
     'Iris',
     'Vex',
   ];
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 20; i++) {
     const id = randomUUID();
     const base = names[i % names.length];
     const suffix = rand() < 0.4 ? `-${Math.floor(rand() * 90 + 10)}` : '';
