@@ -443,6 +443,18 @@ function getViewport(p) {
   return tiles;
 }
 
+function getRectTiles(x, y, w, h) {
+  const tiles = [];
+  for (let yy = 0; yy < h; yy++) {
+    const row = [];
+    for (let xx = 0; xx < w; xx++) {
+      row.push(getTile(x + xx, y + yy));
+    }
+    tiles.push(row);
+  }
+  return tiles;
+}
+
 function nearbyChests(p) {
   const out = [];
   for (const [k, v] of chests.entries()) {
@@ -621,7 +633,7 @@ const server = app.listen(PORT, () => {
 const wss = new WebSocketServer({ noServer: true });
 // Public world-view WebSocket (no auth)
 const wssWorld = new WebSocketServer({ noServer: true });
-const worldSockets = new Set();
+const worldSockets = new Map(); // ws -> {x,y,w,h}
 
 server.on('upgrade', (req, socket, head) => {
   try {
@@ -808,7 +820,18 @@ wss.on('connection', (ws, req) => {
 
 // Public world-view WebSocket (no auth)
 wssWorld.on('connection', (ws) => {
-  worldSockets.add(ws);
+  worldSockets.set(ws, null);
+  ws.on('message', (msg) => {
+    try {
+      const data = JSON.parse(msg.toString());
+      if (data.type === 'view') {
+        const { x, y, w, h } = data;
+        if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(w) && Number.isFinite(h)) {
+          worldSockets.set(ws, { x: Math.max(0, x), y: Math.max(0, y), w: Math.max(1, w), h: Math.max(1, h) });
+        }
+      }
+    } catch (e) {}
+  });
   ws.on('close', () => worldSockets.delete(ws));
 });
 
@@ -847,9 +870,26 @@ setInterval(() => {
 // World-view broadcast (1s)
 setInterval(() => {
   if (worldSockets.size === 0) return;
-  const payload = JSON.stringify({ type: 'world', ...getWorldSnapshot() });
-  for (const ws of worldSockets) {
-    if (ws.readyState === 1) ws.send(payload);
+  for (const [ws, view] of worldSockets.entries()) {
+    if (ws.readyState !== 1) continue;
+    if (!view) continue;
+    const x = Math.min(WORLD_W - 1, Math.max(0, Math.floor(view.x)));
+    const y = Math.min(WORLD_H - 1, Math.max(0, Math.floor(view.y)));
+    const w = Math.min(WORLD_W - x, Math.max(1, Math.floor(view.w)));
+    const h = Math.min(WORLD_H - y, Math.max(1, Math.floor(view.h)));
+    const payload = {
+      type: 'world',
+      ok: true,
+      worldWidth: WORLD_W,
+      worldHeight: WORLD_H,
+      x, y, w, h,
+      tiles: getRectTiles(x, y, w, h),
+      players: Array.from(players.values()).map(({ apiKey, ...rest }) => rest),
+      animals: Array.from(animals.values()),
+      npcs: Array.from(npcs.values()),
+      chat: chatLog,
+    };
+    ws.send(JSON.stringify(payload));
   }
 }, 1000);
 
