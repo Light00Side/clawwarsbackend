@@ -337,7 +337,8 @@ function genNpcs() {
 function loadWorld() {
   try {
     const envSeed = process.env.WORLD_SEED || 'moltwars';
-    if (fs.existsSync(SAVE_PATH)) {
+    const forceRegen = process.env.FORCE_REGEN === '1';
+    if (!forceRegen && fs.existsSync(SAVE_PATH)) {
       const raw = fs.readFileSync(SAVE_PATH, 'utf8');
       const data = JSON.parse(raw);
       if (data?.seed) setSeed(data.seed); else setSeed(envSeed);
