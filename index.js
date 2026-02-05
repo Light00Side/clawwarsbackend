@@ -327,6 +327,7 @@ function genNpcs() {
       goal: null,
       goalUntil: 0,
       goalDir: 0,
+      stats: { blocksMined: 0, itemsCrafted: 0, playtimeMs: 0 },
     });
   }
 }
@@ -498,6 +499,7 @@ function nearbyAnimals(p) {
 function nearbyNpcs(p) {
   const out = [];
   for (const n of npcs.values()) {
+    if (n.stats) n.stats.playtimeMs = (n.stats.playtimeMs || 0) + 100;
     if (Math.abs(n.x - p.x) <= VIEW_RADIUS && Math.abs(n.y - p.y) <= VIEW_RADIUS) {
       out.push(n);
     }
@@ -636,10 +638,12 @@ function tickNpcs() {
       goal: null,
       goalUntil: 0,
       goalDir: 0,
+      stats: { blocksMined: 0, itemsCrafted: 0, playtimeMs: 0 },
     });
   }
 
   for (const n of npcs.values()) {
+    if (n.stats) n.stats.playtimeMs = (n.stats.playtimeMs || 0) + 100;
     if (!n.goal || Date.now() > (n.goalUntil || 0)) assignNpcGoal(n);
 
     if (avoidVoid(n)) {
@@ -662,6 +666,7 @@ function tickNpcs() {
           setTile(tx, ty, TILE.AIR);
           const item = t === TILE.TREE ? ITEM.WOOD : t === TILE.ORE ? ITEM.ORE : t === TILE.STONE ? ITEM.STONE : ITEM.DIRT;
           n.inv[item] = (n.inv[item] || 0) + 1;
+          if (n.stats) n.stats.blocksMined = (n.stats.blocksMined || 0) + 1;
         } else {
           tryMove(n, 0, -1);
         }
@@ -709,6 +714,7 @@ function tickNpcs() {
       if (getTile(tx, ty) === TILE.AIR && item && (n.inv[item] || 0) > 0) {
         setTile(tx, ty, buildTile);
         n.inv[item] -= 1;
+        if (n.stats) n.stats.itemsCrafted = (n.stats.itemsCrafted || 0) + 1;
       }
     }
   }
