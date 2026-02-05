@@ -328,6 +328,7 @@ function genNpcs() {
       goalUntil: 0,
       goalDir: 0,
       goalStage: 0,
+      roamX: Math.floor(rand() * WORLD_W),
       stats: { blocksMined: 0, itemsCrafted: 0, playtimeMs: 0 },
     });
   }
@@ -500,6 +501,11 @@ function nearbyAnimals(p) {
 function nearbyNpcs(p) {
   const out = [];
   for (const n of npcs.values()) {
+    if (n.roamX == null) n.roamX = Math.floor(rand() * WORLD_W);
+    if (Math.abs(n.x - n.roamX) < 5) n.roamX = Math.floor(rand() * WORLD_W);
+    if (n.y > WORLD_H * 0.8) {
+      tryMove(n, 0, -1);
+    }
     if (n.stats) n.stats.playtimeMs = (n.stats.playtimeMs || 0) + 100;
     if (Math.abs(n.x - p.x) <= VIEW_RADIUS && Math.abs(n.y - p.y) <= VIEW_RADIUS) {
       out.push(n);
@@ -617,7 +623,7 @@ function assignNpcGoal(n) {
   else if (r < 0.85) goal = 'wander';
   else goal = 'build';
   n.goal = goal;
-  n.goalDir = rand() < 0.5 ? -1 : 1;
+  n.goalDir = n.roamX != null ? (n.roamX > n.x ? 1 : -1) : (rand() < 0.5 ? -1 : 1);
   n.goalUntil = now + Math.floor(20000 + rand() * 20000);
 }
 
@@ -648,11 +654,17 @@ function tickNpcs() {
       goalUntil: 0,
       goalDir: 0,
       goalStage: 0,
+      roamX: Math.floor(rand() * WORLD_W),
       stats: { blocksMined: 0, itemsCrafted: 0, playtimeMs: 0 },
     });
   }
 
   for (const n of npcs.values()) {
+    if (n.roamX == null) n.roamX = Math.floor(rand() * WORLD_W);
+    if (Math.abs(n.x - n.roamX) < 5) n.roamX = Math.floor(rand() * WORLD_W);
+    if (n.y > WORLD_H * 0.8) {
+      tryMove(n, 0, -1);
+    }
     if (n.stats) n.stats.playtimeMs = (n.stats.playtimeMs || 0) + 100;
     if (!n.goal || Date.now() > (n.goalUntil || 0)) assignNpcGoal(n);
 
