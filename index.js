@@ -323,6 +323,9 @@ function genNpcs() {
       vx: 0,
       vy: 0,
       skin: SKINS[i % SKINS.length],
+      goal: null,
+      goalUntil: 0,
+      goalDir: 0,
     });
   }
 }
@@ -584,6 +587,22 @@ function tickAnimals() {
   }
 }
 
+
+function assignNpcGoal(n) {
+  const now = Date.now();
+  const x = Math.max(0, Math.min(WORLD_W - 1, Math.floor(n.x)));
+  const surface = surfaceMap[x] || Math.floor(WORLD_H * 0.25);
+  let goal = 'wander';
+  const r = rand();
+  if (n.y > surface + 4) goal = 'surface';
+  else if (r < 0.45) goal = 'tunnel';
+  else if (r < 0.75) goal = 'wander';
+  else goal = 'build';
+  n.goal = goal;
+  n.goalDir = rand() < 0.5 ? -1 : 1;
+  n.goalUntil = now + Math.floor(5000 + rand() * 12000);
+}
+
 function tickNpcs() {
   // cap NPCs
   while (npcs.size > 40) {
@@ -607,25 +626,48 @@ function tickNpcs() {
       vx: 0,
       vy: 0,
       skin: SKINS[Math.floor(rand() * SKINS.length)],
+      goal: null,
+      goalUntil: 0,
+      goalDir: 0,
     });
   }
 
   for (const n of npcs.values()) {
-    if (avoidVoid(n) || keepAboveGround(n)) {
+    if (!n.goal || Date.now() > (n.goalUntil || 0)) assignNpcGoal(n);
+
+    if (avoidVoid(n)) {
       n.vx = 0;
       n.vy = -1;
       tryMove(n, 0, -1);
     }
-    // Always pick a direction
-    n.vx = Math.floor(rand() * 3) - 1;
-    n.vy = 0;
-    tryMove(n, n.vx * 0.8, 0);
+
+    const goal = n.goal || 'wander';
+    const horizontal = goal === 'tunnel';
+
+    if (goal === 'surface') {
+      if (keepAboveGround(n)) {
+        n.vx = 0;
+        n.vy = -1;
+        tryMove(n, 0, -1);
+      } else {
+        n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
+        tryMove(n, n.vx * 0.6, 0);
+      }
+    } else if (goal === 'tunnel') {
+      n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
+      tryMove(n, n.vx * 0.9, 0);
+    } else if (goal === 'build') {
+      n.vx = 0;
+    } else {
+      if (rand() < 0.3) n.vx = Math.floor(rand() * 3) - 1;
+      tryMove(n, n.vx * 0.6, 0);
+    }
+
     applyGravity(n);
 
-    // Mine nearby block (mix of shafts + horizontal tunnels)
-    if (rand() < 0.08) {
-      const horizontal = rand() < 0.6; // prefer side-to-side
-      const dx = horizontal ? (rand() < 0.5 ? -1 : 1) : Math.floor(rand() * 3 - 1);
+    // Mine nearby block (goal-driven)
+    if (goal === 'tunnel' ? rand() < 0.15 : rand() < 0.03) {
+      const dx = horizontal ? (n.goalDir || (rand() < 0.5 ? -1 : 1)) : Math.floor(rand() * 3 - 1);
       const dy = horizontal ? 0 : (rand() < 0.5 ? 1 : -1);
       const tx = Math.floor(n.x + dx);
       const ty = Math.floor(n.y + dy);
@@ -637,8 +679,8 @@ function tickNpcs() {
       }
     }
 
-    // Build frequently if has materials
-    if (rand() < 0.05) {
+    // Build if goal is build (or sometimes)
+    if (goal === 'build' ? rand() < 0.12 : rand() < 0.03) {
       const buildTile = [TILE.DIRT, TILE.STONE, TILE.TREE][Math.floor(rand() * 3)];
       const map = {
         [TILE.DIRT]: ITEM.DIRT,
