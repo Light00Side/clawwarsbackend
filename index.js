@@ -503,6 +503,13 @@ function nearbyAnimals(p) {
 function nearbyNpcs(p) {
   const out = [];
   for (const n of npcs.values()) {
+    const sx = Math.max(0, Math.min(WORLD_W - 1, Math.floor(n.x)));
+    const surface = surfaceMap[sx] || Math.floor(WORLD_H * 0.25);
+    if (n.y <= surface + 1) {
+      // force NPCs downward, never above surface
+      tryMove(n, 0, 1);
+      n.vx = 0;
+    }
     if (n.roamX == null) n.roamX = Math.floor(rand() * WORLD_W);
     if (Math.abs(n.x - n.roamX) < 5) n.roamX = Math.floor(rand() * WORLD_W);
     if (n.y > WORLD_H * 0.8) {
@@ -661,6 +668,13 @@ function tickNpcs() {
   }
 
   for (const n of npcs.values()) {
+    const sx = Math.max(0, Math.min(WORLD_W - 1, Math.floor(n.x)));
+    const surface = surfaceMap[sx] || Math.floor(WORLD_H * 0.25);
+    if (n.y <= surface + 1) {
+      // force NPCs downward, never above surface
+      tryMove(n, 0, 1);
+      n.vx = 0;
+    }
     if (n.roamX == null) n.roamX = Math.floor(rand() * WORLD_W);
     if (Math.abs(n.x - n.roamX) < 5) n.roamX = Math.floor(rand() * WORLD_W);
     if (n.y > WORLD_H * 0.8) {
