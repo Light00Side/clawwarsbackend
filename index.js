@@ -701,7 +701,7 @@ function tickNpcs() {
     } else if (goal === 'diag') {
       const dir = n.goalDir || (rand() < 0.5 ? -1 : 1);
       n.vx = dir;
-      tryMove(n, dir * 0.7, 0.7);
+      tryMove(n, dir * 0.4, 0.4);
     } else if (goal === 'surface') {
       if (keepAboveGround(n)) {
         n.vx = 0;
@@ -719,11 +719,11 @@ function tickNpcs() {
         }
       } else {
         n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
-        tryMove(n, n.vx * 0.7, 0);
+        tryMove(n, n.vx * 0.4, 0);
       }
     } else if (goal === 'tunnel') {
       n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
-      tryMove(n, n.vx * 0.9, 0);
+      tryMove(n, n.vx * 0.5, 0);
     } else if (goal === 'build') {
       if (rand() < 0.5) n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
       tryMove(n, n.vx * 0.4, 0);
@@ -774,7 +774,7 @@ function tickNpcs() {
     }
 
     // Build if goal is build (or sometimes)
-    if (goal === 'build' ? rand() < 0.06 : rand() < 0.02) {
+    if (goal === 'build' ? rand() < 0.04 : rand() < 0.01) {
       const buildTile = [TILE.DIRT, TILE.STONE, TILE.TREE][Math.floor(rand() * 3)];
       const map = {
         [TILE.DIRT]: ITEM.DIRT,
