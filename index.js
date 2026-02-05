@@ -685,19 +685,10 @@ function tickNpcs() {
     }
 
     if (goal === 'shaft') {
-      n.vx = 0;
-      // move/mine downward
-      const tx = Math.floor(n.x);
-      const ty = Math.floor(n.y + 1);
-      const t = getTile(tx, ty);
-      if (t !== TILE.AIR && t !== TILE.SKY) {
-        setTile(tx, ty, TILE.AIR);
-        const item = t === TILE.TREE ? ITEM.WOOD : t === TILE.ORE ? ITEM.ORE : t === TILE.STONE ? ITEM.STONE : ITEM.DIRT;
-        n.inv[item] = (n.inv[item] || 0) + 1;
-        if (n.stats) n.stats.blocksMined = (n.stats.blocksMined || 0) + 1;
-      } else {
-        tryMove(n, 0, 1);
-      }
+      // horizontal mineshaft
+      const dir = n.goalDir || (rand() < 0.5 ? -1 : 1);
+      n.vx = dir;
+      tryMove(n, dir * 0.7, 0);
     } else if (goal === 'diag') {
       const dir = n.goalDir || (rand() < 0.5 ? -1 : 1);
       n.vx = dir;
@@ -755,7 +746,8 @@ function tickNpcs() {
         dx = n.goalDir || (rand() < 0.5 ? -1 : 1);
         dy = 0;
       } else if (isShaft) {
-        dx = 0; dy = 1;
+        dx = n.goalDir || (rand() < 0.5 ? -1 : 1);
+        dy = 0;
       } else if (isDiag) {
         dx = n.goalDir || (rand() < 0.5 ? -1 : 1);
         dy = 1;
