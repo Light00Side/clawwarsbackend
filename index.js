@@ -312,7 +312,7 @@ function genNpcs() {
       id,
       name: `${base}${suffix}`,
       x: Math.floor(rand() * WORLD_W),
-      y: Math.floor(WORLD_H * 0.25 + rand() * WORLD_H * 0.5),
+      y: Math.floor(WORLD_H * 0.6 + rand() * WORLD_H * 0.35),
       hp: 100,
       inv: {},
       vx: 0,
