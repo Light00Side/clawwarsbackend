@@ -234,7 +234,7 @@ function genWorld() {
         if (y < s + dirtDepth) {
           setTile(x, y, TILE.DIRT);
         } else {
-          setTile(x, y, hash2(x, y) < 1.0 ? TILE.ORE : TILE.STONE);
+          setTile(x, y, hash2(x, y) < 0.25 ? TILE.ORE : TILE.STONE);
         }
       }
     }
