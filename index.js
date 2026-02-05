@@ -603,9 +603,9 @@ function assignNpcGoal(n) {
   const surface = surfaceMap[x] || Math.floor(WORLD_H * 0.25);
   let goal = 'wander';
   const r = rand();
-  if (n.y > surface + 4) goal = 'surface';
-  else if (r < 0.45) goal = 'tunnel';
-  else if (r < 0.75) goal = 'wander';
+  if (n.y < surface + 2) goal = 'tunnel';
+  else if (r < 0.6) goal = 'tunnel';
+  else if (r < 0.85) goal = 'wander';
   else goal = 'build';
   n.goal = goal;
   n.goalDir = rand() < 0.5 ? -1 : 1;
@@ -654,6 +654,23 @@ function tickNpcs() {
 
     const goal = n.goal || 'wander';
     const horizontal = goal === 'tunnel';
+
+    const x = Math.max(0, Math.min(WORLD_W - 1, Math.floor(n.x)));
+    const surface = surfaceMap[x] || Math.floor(WORLD_H * 0.25);
+    if (n.y <= surface + 1) {
+      // push NPCs back underground by mining down
+      const tx = Math.floor(n.x);
+      const ty = Math.floor(n.y + 1);
+      const t = getTile(tx, ty);
+      if (t !== TILE.AIR && t !== TILE.SKY) {
+        setTile(tx, ty, TILE.AIR);
+        const item = t === TILE.TREE ? ITEM.WOOD : t === TILE.ORE ? ITEM.ORE : t === TILE.STONE ? ITEM.STONE : ITEM.DIRT;
+        n.inv[item] = (n.inv[item] || 0) + 1;
+        if (n.stats) n.stats.blocksMined = (n.stats.blocksMined || 0) + 1;
+      } else {
+        tryMove(n, 0, 1);
+      }
+    }
 
     if (goal === 'surface') {
       if (keepAboveGround(n)) {
