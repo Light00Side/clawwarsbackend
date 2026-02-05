@@ -893,6 +893,23 @@ setInterval(() => {
   }
 }, 250);
 
+// Push snapshots to edge (optional)
+if (process.env.MOLT_EDGE_PUSH_URL && process.env.MOLT_EDGE_SECRET) {
+  setInterval(async () => {
+    try {
+      const payload = JSON.stringify(getWorldSnapshot());
+      await fetch(process.env.MOLT_EDGE_PUSH_URL, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-molt-secret': process.env.MOLT_EDGE_SECRET,
+        },
+        body: payload,
+      });
+    } catch (e) {}
+  }, 250);
+}
+
 // NPC chatter (random)
 setInterval(() => {
   if (npcs.size === 0) return;
