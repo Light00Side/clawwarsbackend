@@ -655,7 +655,16 @@ function tickNpcs() {
       if (keepAboveGround(n)) {
         n.vx = 0;
         n.vy = -1;
-        tryMove(n, 0, -1);
+        const tx = Math.floor(n.x);
+        const ty = Math.floor(n.y - 1);
+        const t = getTile(tx, ty);
+        if (t !== TILE.AIR && t !== TILE.SKY) {
+          setTile(tx, ty, TILE.AIR);
+          const item = t === TILE.TREE ? ITEM.WOOD : t === TILE.ORE ? ITEM.ORE : t === TILE.STONE ? ITEM.STONE : ITEM.DIRT;
+          n.inv[item] = (n.inv[item] || 0) + 1;
+        } else {
+          tryMove(n, 0, -1);
+        }
       } else {
         n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
         tryMove(n, n.vx * 1.0, 0);
