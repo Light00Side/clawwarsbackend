@@ -515,11 +515,12 @@ function applyGravity(entity) {
 }
 
 function avoidVoid(entity) {
-  if (entity.y < WORLD_H - 4) return false;
-  // steer upward when near bottom
+  if (entity.y < WORLD_H - 8) return false;
+  // steer upward when near bottom (stronger)
   const nx = Math.max(0, Math.min(WORLD_W - 1, Math.floor(entity.x)));
   const below = getTile(nx, Math.min(WORLD_H - 1, Math.floor(entity.y + 1)));
   if (!isSolid(below)) {
+    tryMove(entity, 0, -1);
     tryMove(entity, 0, -1);
     return true;
   }
@@ -611,7 +612,9 @@ function tickNpcs() {
 
   for (const n of npcs.values()) {
     if (avoidVoid(n)) {
-      n.vx = Math.floor(rand() * 3) - 1;
+      n.vx = 0;
+      n.vy = -1;
+      tryMove(n, 0, -1);
     }
     // Always pick a direction
     n.vx = Math.floor(rand() * 3) - 1;
