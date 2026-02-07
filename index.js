@@ -294,18 +294,16 @@ function genAnimals() {
 }
 
 const NPC_NAMES = [
-  'Molty',
-  'Claw',
-  'Clawer',
-  'Clawbot',
-  'Moltling',
-  'Rune',
-  'Ash',
-  'Ember',
-  'Sable',
-  'Nova',
-  'Iris',
-  'Vex',
+  'Molty', 'Grimshaw', 'Thornwick', 'Brimstone', 'Cobalt',
+  'Rustheart', 'Ashwick', 'Ironbane', 'Duskhollow', 'Emberlyn',
+  'Frostmourne', 'Gilded', 'Hollowbone', 'Inkwell', 'Jadeclaw',
+  'Knightfall', 'Loomis', 'Mirefoot', 'Nightshade', 'Obsidian',
+  'Patchwork', 'Quartzfang', 'Ravenmoor', 'Stonegrit', 'Thistledown',
+  'Umbra', 'Vexis', 'Wraith', 'Xander', 'Yarrow',
+  'Zephyr', 'Blackthorn', 'Cinderfell', 'Dagger', 'Eclipse',
+  'Foxglove', 'Gravel', 'Hex', 'Ichor', 'Jinx',
+  'Kestrel', 'Lurker', 'Marrow', 'Nettle', 'Onyx',
+  'Prowl', 'Quill', 'Rook', 'Scourge', 'Talon',
 ];
 
 function genNpcs() {
@@ -313,10 +311,9 @@ function genNpcs() {
   for (let i = 0; i < 30; i++) {
     const id = randomUUID();
     const base = NPC_NAMES[i % NPC_NAMES.length];
-    const suffix = rand() < 0.4 ? `-${Math.floor(rand() * 90 + 10)}` : '';
     npcs.set(id, {
       id,
-      name: `${base}${suffix}`,
+      name: base,
       x: Math.floor(rand() * WORLD_W),
       y: Math.floor(WORLD_H * 0.45 + rand() * WORLD_H * 0.5),
       hp: 100,
@@ -722,10 +719,9 @@ function tickNpcs() {
   if (npcs.size < 30 && rand() < 0.08) {
     const id = randomUUID();
     const base = NPC_NAMES[Math.floor(rand() * NPC_NAMES.length)];
-    const suffix = rand() < 0.4 ? `-${Math.floor(rand() * 90 + 10)}` : '';
     npcs.set(id, {
       id,
-      name: `${base}${suffix}`,
+      name: base,
       x: Math.floor(rand() * WORLD_W),
       y: Math.floor(WORLD_H * 0.45 + rand() * WORLD_H * 0.5),
       hp: 100,
@@ -783,7 +779,7 @@ function tickNpcs() {
       const enemy = findNearbyEnemy(n, 2);
       if (enemy && now - (n.lastAttack || 0) > 800) {
         n.state = 'fighting';
-        n.fightingUntil = now + 500; // flash for 500ms
+        n.fightingUntil = now + 1000; // swing for 1 second
         n.lastAttack = now;
         const dmg = 5 + Math.floor(rand() * 10);
         damageNpc(enemy, dmg, n.id);
