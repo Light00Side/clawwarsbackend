@@ -837,7 +837,8 @@ function tickNpcs() {
 
 // REST: join (unique usernames)
 app.post('/join', (req, res) => {
-  const { name } = req.body || {};
+  return res.status(410).json({ error: 'player joins disabled' });
+    const { name } = req.body || {};
   if (!name) return res.status(400).json({ ok: false, error: 'name required' });
   const activeCount = Array.from(players.values()).filter(isActivePlayer).length;
   if (activeCount >= MAX_PLAYERS) return res.status(429).json({ ok: false, error: 'server full' });
@@ -922,9 +923,10 @@ server.on('upgrade', (req, socket, head) => {
       return;
     }
     if (url.pathname === '/ws') {
-      wss.handleUpgrade(req, socket, head, (ws) => {
-        wss.emit('connection', ws, req);
-      });
+      socket.write('HTTP/1.1 410 Gone
+
+');
+      socket.destroy();
       return;
     }
   } catch (e) {}
