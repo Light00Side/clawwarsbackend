@@ -622,7 +622,7 @@ function assignNpcGoal(n) {
   // Detect if near world borders
   const nearLeftEdge = n.x < 30;
   const nearRightEdge = n.x > WORLD_W - 30;
-  const nearBottom = n.y > WORLD_H - 20;
+  const nearBottom = n.y > WORLD_H - 80;
   
   let goal = 'wander';
   let dir = rand() < 0.5 ? -1 : 1;
@@ -680,7 +680,7 @@ function damageNpc(n, amount, attackerId) {
     if (attacker && attacker.stats) {
       attacker.stats.kills = (attacker.stats.kills || 0) + 1;
     }
-    broadcastChat(`🟡 ${n.name} was slain`);
+    chatLog.push({ ts: Date.now(), message: `🟡 ${n.name} was slain` });
     emitFx({ kind: 'death', x: n.x, y: n.y, actorId: n.id, actorType: 'npc' });
   }
 }
@@ -695,7 +695,7 @@ function respawnNpc(n) {
   n.state = 'idle';
   n.goal = 'findSpot';
   n.goalUntil = Date.now() + 5000;
-  broadcastChat(`🟡 ${n.name} respawned`);
+  chatLog.push({ ts: Date.now(), message: `🟡 ${n.name} respawned` });
 }
 
 // Find nearby NPC to fight
@@ -770,6 +770,14 @@ function tickNpcs() {
     
     n.state = 'walking';
     
+    // If too deep, switch to horizontal movement only (no more digging down)
+    if (n.y > WORLD_H - 60) {
+      if (n.goal === 'digDown' || n.goal === 'diag') {
+        n.goal = 'tunnel'; // switch to horizontal
+        n.goalUntil = Date.now() + 20000;
+      }
+    }
+    
     // Combat check - fight nearby NPCs (50% chance per tick)
     if (rand() < 0.5) {
       const enemy = findNearbyEnemy(n, 2);
@@ -815,7 +823,7 @@ function tickNpcs() {
         if (n.stats) n.stats.blocksMined = (n.stats.blocksMined || 0) + 1;
         emitFx({ kind: 'mine', x: tx, y: ty, actorId: n.id, actorType: 'npc' });
       }
-      tryMove(n, 0, 0.25);
+      tryMove(n, 0, 0.08);
     } else if (goal === 'climbUp') {
       // Dig upward to escape deep areas
       n.vx = dir * 0.3;
@@ -828,11 +836,11 @@ function tickNpcs() {
         n.inv[item] = (n.inv[item] || 0) + 1;
         if (n.stats) n.stats.blocksMined = (n.stats.blocksMined || 0) + 1;
       }
-      tryMove(n, dir * 0.15, -0.25);
+      tryMove(n, dir * 0.05, -0.1);
     } else if (goal === 'findSpot') {
       // Walk on surface looking for a place to dig
       n.vx = dir;
-      tryMove(n, dir * 0.4, 0);
+      tryMove(n, dir * 0.12, 0);
       // Occasionally start digging down
       if (rand() < 0.02) {
         n.goal = 'digDown';
@@ -841,10 +849,10 @@ function tickNpcs() {
     } else if (goal === 'shaft') {
       // horizontal mineshaft
       n.vx = dir;
-      tryMove(n, dir * 0.35, 0);
+      tryMove(n, dir * 0.1, 0);
     } else if (goal === 'diag') {
       n.vx = dir;
-      tryMove(n, dir * 0.3, 0.2);
+      tryMove(n, dir * 0.08, 0.05);
     } else if (goal === 'surface') { // deprecated
       // no-op
 
@@ -879,17 +887,17 @@ function tickNpcs() {
         }
       } else {
         n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
-        tryMove(n, n.vx * 0.35, 0);
+        tryMove(n, n.vx * 0.15, 0);
       }
     } else if (goal === 'tunnel') {
       n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
-      tryMove(n, n.vx * 0.45, 0);
+      tryMove(n, n.vx * 0.2, 0);
     } else if (goal === 'build') {
       if (rand() < 0.5) n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
-      tryMove(n, n.vx * 0.35, 0);
+      tryMove(n, n.vx * 0.15, 0);
     } else {
       if (rand() < 0.3) n.vx = Math.floor(rand() * 3) - 1;
-      tryMove(n, n.vx * 0.5, 0);
+      tryMove(n, n.vx * 0.2, 0);
     }
 
     if (n.vx !== 0) n.look = n.vx > 0 ? 1 : 0;
@@ -924,7 +932,7 @@ function tickNpcs() {
       }
     }
     // Mine nearby block (goal-driven)
-    if (isBelowDirt(n.x, n.y) && (goal === 'tunnel' ? rand() < 0.15 : rand() < 0.03)) {
+    if (isBelowDirt(n.x, n.y) && (goal === 'tunnel' ? rand() < 0.08 : rand() < 0.015)) {
       let dx;
       let dy;
       if (goal === 'tunnel' || goal === 'shaft') {
