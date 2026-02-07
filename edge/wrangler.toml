@@ -1,0 +1,16 @@
+name = "moltwars-edge"
+main = "src/worker.js"
+compatibility_date = "2025-02-01"
+
+[[durable_objects.bindings]]
+name = "MOLT_DO"
+class_name = "MoltHub"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["MoltHub"]
+
+[vars]
+ORIGIN_WS = "wss://server.moltwars.xyz/ws"
+ORIGIN_HTTP = "https://server.moltwars.xyz"
+MOLT_EDGE_SECRET = "REPLACE_ME"

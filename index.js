@@ -618,18 +618,96 @@ function assignNpcGoal(n) {
   const now = Date.now();
   const x = Math.max(0, Math.min(WORLD_W - 1, Math.floor(n.x)));
   const surface = surfaceMap[x] || Math.floor(WORLD_H * 0.25);
+  
+  // Detect if near world borders
+  const nearLeftEdge = n.x < 30;
+  const nearRightEdge = n.x > WORLD_W - 30;
+  const nearBottom = n.y > WORLD_H - 20;
+  
   let goal = 'wander';
-  const r = rand();
+  let dir = rand() < 0.5 ? -1 : 1;
+  let duration = 15000 + rand() * 25000;
+  
+  // Force direction away from edges
+  if (nearLeftEdge) dir = 1;
+  if (nearRightEdge) dir = -1;
+  
   if (isBelowDirt(n.x, n.y)) {
-    const stage = (n.goalStage || 0) % 3; // 0 shaft,1 diag,2 shaft
-    goal = stage == 1 ? 'diag' : 'shaft';
-    n.goalStage = (stage + 1) % 3;
+    // Underground behavior - more varied
+    const r = rand();
+    if (nearBottom) {
+      // Too deep, go up
+      goal = 'climbUp';
+      duration = 10000 + rand() * 10000;
+    } else if (r < 0.25) {
+      // Dig straight down (vertical shaft)
+      goal = 'digDown';
+      duration = 8000 + rand() * 12000;
+    } else if (r < 0.5) {
+      // Horizontal tunnel
+      goal = 'tunnel';
+      duration = 15000 + rand() * 20000;
+    } else if (r < 0.75) {
+      // Diagonal mining
+      goal = 'diag';
+      duration = 12000 + rand() * 15000;
+    } else {
+      // Horizontal shaft (like before)
+      goal = 'shaft';
+      duration = 15000 + rand() * 20000;
+    }
   } else {
-    goal = 'shaft';
+    // On surface - find a spot to start mining
+    goal = 'findSpot';
+    duration = 5000 + rand() * 10000;
   }
+  
   n.goal = goal;
-  n.goalDir = n.roamX != null ? (n.roamX > n.x ? 1 : -1) : (rand() < 0.5 ? -1 : 1);
-  n.goalUntil = now + Math.floor(20000 + rand() * 20000);
+  n.goalDir = dir;
+  n.goalUntil = now + Math.floor(duration);
+}
+
+// NPC takes damage
+function damageNpc(n, amount, attackerId) {
+  n.hp = Math.max(0, (n.hp || 100) - amount);
+  if (n.hp <= 0) {
+    // NPC dies
+    n.state = 'dead';
+    n.deadUntil = Date.now() + 5000; // respawn in 5s
+    if (n.stats) n.stats.deaths = (n.stats.deaths || 0) + 1;
+    // Credit kill to attacker
+    const attacker = npcs.get(attackerId);
+    if (attacker && attacker.stats) {
+      attacker.stats.kills = (attacker.stats.kills || 0) + 1;
+    }
+    broadcastChat(`🟡 ${n.name} was slain`);
+    emitFx({ kind: 'death', x: n.x, y: n.y, actorId: n.id, actorType: 'npc' });
+  }
+}
+
+// Respawn dead NPC
+function respawnNpc(n) {
+  const spawnX = Math.floor(rand() * WORLD_W);
+  const surface = surfaceMap[spawnX] || Math.floor(WORLD_H * 0.25);
+  n.x = spawnX;
+  n.y = Math.max(1, surface - 1);
+  n.hp = n.maxHp || 100;
+  n.state = 'idle';
+  n.goal = 'findSpot';
+  n.goalUntil = Date.now() + 5000;
+  broadcastChat(`🟡 ${n.name} respawned`);
+}
+
+// Find nearby NPC to fight
+function findNearbyEnemy(n, range = 3) {
+  for (const other of npcs.values()) {
+    if (other.id === n.id) continue;
+    if (other.state === 'dead') continue;
+    const dx = Math.abs(other.x - n.x);
+    const dy = Math.abs(other.y - n.y);
+    if (dx <= range && dy <= range) return other;
+  }
+  return null;
 }
 
 function tickNpcs() {
@@ -665,35 +743,108 @@ function tickNpcs() {
   }
 
   for (const n of npcs.values()) {
-    if (n.roamX == null) n.roamX = Math.floor(rand() * WORLD_W);
-    if (Math.abs(n.x - n.roamX) < 5) n.roamX = Math.floor(rand() * WORLD_W);
-    if (n.y > WORLD_H * 0.8) {
-      tryMove(n, 0, -1);
-    }
     if (n.stats) n.stats.playtimeMs = (n.stats.playtimeMs || 0) + 100;
-    if (!n.goal || Date.now() > (n.goalUntil || 0)) assignNpcGoal(n);
+    
+    const now = Date.now();
+    
+    // Handle dead NPCs
+    if (n.state === 'dead') {
+      if (now > (n.deadUntil || 0)) {
+        respawnNpc(n);
+      }
+      continue; // skip all other logic while dead
+    }
+    
+    // Fall damage
+    if (n.fallStart && n.vy === 0) {
+      const fallDist = n.y - n.fallStart;
+      if (fallDist > 8) {
+        const dmg = Math.floor((fallDist - 8) * 5);
+        damageNpc(n, dmg, null);
+      }
+      n.fallStart = null;
+    }
+    if (n.vy > 0 && !n.fallStart) {
+      n.fallStart = n.y;
+    }
+    
+    n.state = 'walking';
+    
+    // Combat check - fight nearby NPCs (50% chance per tick)
+    if (rand() < 0.5) {
+      const enemy = findNearbyEnemy(n, 2);
+      if (enemy && now - (n.lastAttack || 0) > 800) {
+        n.state = 'fighting';
+        n.fightingUntil = now + 500; // flash for 500ms
+        n.lastAttack = now;
+        const dmg = 5 + Math.floor(rand() * 10);
+        damageNpc(enemy, dmg, n.id);
+        enemy.damagedUntil = now + 300; // enemy flashes red for 300ms
+        emitFx({ kind: 'attack', x1: n.x, y1: n.y, x2: enemy.x, y2: enemy.y, actorId: n.id, actorType: 'npc' });
+        n.look = enemy.x > n.x ? 1 : 0;
+      }
+    }
+    
+    if (!n.goal || now > (n.goalUntil || 0)) assignNpcGoal(n);
 
+    // Avoid falling into void
     if (avoidVoid(n)) {
       n.vx = 0;
       n.vy = -1;
       tryMove(n, 0, -1);
+      continue;
     }
+    
+    // Bounce off world edges
+    if (n.x < 5) { n.goalDir = 1; n.x = 5; }
+    if (n.x > WORLD_W - 5) { n.goalDir = -1; n.x = WORLD_W - 5; }
 
     const goal = n.goal || 'wander';
-    const horizontal = goal === 'tunnel';
-    const isDiag = goal === 'diag';
-    const isShaft = goal === 'shaft';
+    const dir = n.goalDir || 1;
 
-
-    if (goal === 'shaft') {
+    if (goal === 'digDown') {
+      // Dig straight down
+      n.vx = 0;
+      const tx = Math.floor(n.x);
+      const ty = Math.floor(n.y + 1);
+      const t = getTile(tx, ty);
+      if (t !== TILE.AIR && t !== TILE.SKY) {
+        setTile(tx, ty, TILE.AIR);
+        const item = t === TILE.ORE ? ITEM.ORE : t === TILE.STONE ? ITEM.STONE : ITEM.DIRT;
+        n.inv[item] = (n.inv[item] || 0) + 1;
+        if (n.stats) n.stats.blocksMined = (n.stats.blocksMined || 0) + 1;
+        emitFx({ kind: 'mine', x: tx, y: ty, actorId: n.id, actorType: 'npc' });
+      }
+      tryMove(n, 0, 0.25);
+    } else if (goal === 'climbUp') {
+      // Dig upward to escape deep areas
+      n.vx = dir * 0.3;
+      const tx = Math.floor(n.x);
+      const ty = Math.floor(n.y - 1);
+      const t = getTile(tx, ty);
+      if (t !== TILE.AIR && t !== TILE.SKY) {
+        setTile(tx, ty, TILE.AIR);
+        const item = t === TILE.ORE ? ITEM.ORE : t === TILE.STONE ? ITEM.STONE : ITEM.DIRT;
+        n.inv[item] = (n.inv[item] || 0) + 1;
+        if (n.stats) n.stats.blocksMined = (n.stats.blocksMined || 0) + 1;
+      }
+      tryMove(n, dir * 0.15, -0.25);
+    } else if (goal === 'findSpot') {
+      // Walk on surface looking for a place to dig
+      n.vx = dir;
+      tryMove(n, dir * 0.4, 0);
+      // Occasionally start digging down
+      if (rand() < 0.02) {
+        n.goal = 'digDown';
+        n.goalUntil = Date.now() + 10000;
+      }
+    } else if (goal === 'shaft') {
       // horizontal mineshaft
-      const dir = n.goalDir || (rand() < 0.5 ? -1 : 1);
       n.vx = dir;
-      tryMove(n, dir * 0.7, 0);
+      tryMove(n, dir * 0.35, 0);
     } else if (goal === 'diag') {
-      const dir = n.goalDir || (rand() < 0.5 ? -1 : 1);
       n.vx = dir;
-      tryMove(n, dir * 0.75, 0.75);
+      tryMove(n, dir * 0.3, 0.2);
     } else if (goal === 'surface') { // deprecated
       // no-op
 
@@ -728,17 +879,17 @@ function tickNpcs() {
         }
       } else {
         n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
-        tryMove(n, n.vx * 0.75, 0);
+        tryMove(n, n.vx * 0.35, 0);
       }
     } else if (goal === 'tunnel') {
       n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
-      tryMove(n, n.vx * 0.9, 0);
+      tryMove(n, n.vx * 0.45, 0);
     } else if (goal === 'build') {
       if (rand() < 0.5) n.vx = n.goalDir || (rand() < 0.5 ? -1 : 1);
-      tryMove(n, n.vx * 0.75, 0);
+      tryMove(n, n.vx * 0.35, 0);
     } else {
       if (rand() < 0.3) n.vx = Math.floor(rand() * 3) - 1;
-      tryMove(n, n.vx * 1.0, 0);
+      tryMove(n, n.vx * 0.5, 0);
     }
 
     if (n.vx !== 0) n.look = n.vx > 0 ? 1 : 0;
@@ -776,15 +927,18 @@ function tickNpcs() {
     if (isBelowDirt(n.x, n.y) && (goal === 'tunnel' ? rand() < 0.15 : rand() < 0.03)) {
       let dx;
       let dy;
-      if (horizontal) {
-        dx = n.goalDir || (rand() < 0.5 ? -1 : 1);
+      if (goal === 'tunnel' || goal === 'shaft') {
+        dx = dir;
         dy = 0;
-      } else if (isShaft) {
-        dx = n.goalDir || (rand() < 0.5 ? -1 : 1);
-        dy = 0;
-      } else if (isDiag) {
-        dx = n.goalDir || (rand() < 0.5 ? -1 : 1);
+      } else if (goal === 'diag') {
+        dx = dir;
         dy = 1;
+      } else if (goal === 'digDown') {
+        dx = 0;
+        dy = 1;
+      } else if (goal === 'climbUp') {
+        dx = dir;
+        dy = -1;
       } else {
         dx = Math.floor(rand() * 3 - 1);
         dy = rand() < 0.5 ? 1 : -1;
@@ -814,8 +968,23 @@ function tickNpcs() {
       }
     }
 
+    // Place torch if deep underground (low light area)
+    const depth = n.y - (surfaceMap[Math.floor(n.x)] || Math.floor(WORLD_H * 0.25));
+    if (depth > 20 && (n.inv.torch || 0) > 0 && rand() < 0.01) {
+      const tx = Math.floor(n.x);
+      const ty = Math.floor(n.y);
+      // Check if there's a wall nearby to place torch on
+      const hasWall = getTile(tx - 1, ty) !== TILE.AIR || getTile(tx + 1, ty) !== TILE.AIR;
+      if (hasWall && getTile(tx, ty) === TILE.AIR) {
+        // Place torch (use TREE tile as torch for now - glows)
+        n.inv.torch -= 1;
+        emitFx({ kind: 'build', x: tx, y: ty, actorId: n.id, actorType: 'npc' });
+        broadcastWorld({ type: 'torch', x: tx, y: ty, npcId: n.id });
+      }
+    }
+
     // Build if goal is build (or sometimes)
-    if (false && (goal === 'build' ? rand() < 0.04 : rand() < 0.01)) {
+    if (goal === 'build' ? rand() < 0.04 : rand() < 0.008) {
       const buildTile = [TILE.DIRT, TILE.STONE, TILE.TREE][Math.floor(rand() * 3)];
       const map = {
         [TILE.DIRT]: ITEM.DIRT,
@@ -923,9 +1092,7 @@ server.on('upgrade', (req, socket, head) => {
       return;
     }
     if (url.pathname === '/ws') {
-      socket.write('HTTP/1.1 410 Gone
-
-');
+      socket.write('HTTP/1.1 410 Gone\r\n\r\n');
       socket.destroy();
       return;
     }
